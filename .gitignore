@@ -1,0 +1,26 @@
+.venv
+venv
+/venv
+./venv
+
+
+
+@"
+
+mlruns/
+mlflow.db
+models/
+data/raw/
+data/processed/
+__pycache__/
+venv/
+.env
+"@ | Add-Content .gitignore
+
+echo "# HEALTHCARE-ACUITY" >> README.md
+git init
+git add 
+git commit -m "all files push"
+git branch -M main
+git remote add origin https://github.com/lakshaydadhich/HEALTHCARE-ACUITY.git
+git push -u origin main

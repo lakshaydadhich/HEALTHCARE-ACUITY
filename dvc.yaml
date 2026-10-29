@@ -1,0 +1,41 @@
+stages:
+  preprocess:
+    cmd: python src/preprocess.py --params params.yaml
+    deps:
+      - src/preprocess.py
+      - params.yaml
+      - data/raw/healthcare_data_acuity_bundle.xlsx
+    outs:
+      - data/processed/train.csv
+      - data/processed/val.csv
+      - data/processed/test.csv
+
+  train:
+    cmd: python src/train.py --params params.yaml
+    deps:
+      - src/train.py
+      - src/feature_engineering.py
+      - params.yaml
+      - data/processed/train.csv
+      - data/processed/val.csv
+    outs:
+      - models/best_model.joblib
+      - models/preprocessor.joblib
+      - data/processed/feature_names.json
+    metrics:
+      - models/train_metrics.json:
+          cache: false
+
+  evaluate:
+    cmd: python src/evaluate.py --params params.yaml
+    deps:
+      - src/evaluate.py
+      - models/best_model.joblib
+      - models/preprocessor.joblib
+      - data/processed/test.csv
+    metrics:
+      - models/eval_metrics.json:
+          cache: false
+    plots:
+      - models/confusion_matrix.png:
+          cache: false

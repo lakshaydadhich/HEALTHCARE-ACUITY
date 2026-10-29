@@ -1,0 +1,142 @@
+# ═══════════════════════════════════════════════════════════════════
+# Healthcare Acuity Bundle Prediction – Pipeline Configuration
+# ═══════════════════════════════════════════════════════════════════
+
+data:
+  raw_path: data/raw/healthcare_data_acuity_bundle.xlsx
+  sheet: ML_Features
+  processed_dir: data/processed
+  preprocessor_path: models/preprocessor.joblib
+  model_path: models/best_model.joblib
+
+target:
+  column: Acuity_Bundle
+  # Label encoding order (code 0..4)
+  classes:
+    - ROUTINE_CARE
+    - ENHANCED_MONITORING
+    - RESPIRATORY_SUPPORT
+    - SEPSIS_HOUR1
+    - CRITICAL_CARE
+
+split:
+  # Time-based split on admission date
+  date_column: Admission_Date
+  val_size: 0.15
+  test_size: 0.15
+
+# ── Feature definitions ──────────────────────────────────────────
+features:
+  numeric:
+    - Age
+    - Risk_Score
+    - Mean_HR
+    - Max_HR
+    - Std_HR
+    - Mean_SpO2
+    - Min_SpO2
+    - Mean_BP_Sys
+    - Min_BP_Sys
+    - Max_Temp
+    - Mean_RR
+    - Max_RR
+    - Mean_GCS
+    - Min_GCS
+    - Hypoxia_Episodes
+    - Tachycardia_Episodes
+    - Vitals_Count
+    - NEWS2
+    - qSOFA
+    - SIRS
+    - LOS
+
+  categorical:
+    - Gender
+    - Department
+    - Diagnosis
+    - Insurance
+    - Blood_Type
+    - ICU_Admitted
+    - Status
+    - Discharge_Status
+    - ICU_Transfer
+    - Mortality
+    - Readmission
+
+  # Ordinal features: mapped string → integer before modelling
+  ordinal:
+    Acuity_Level:
+      Low: 1
+      Medium: 2
+      High: 3
+      Critical: 4
+
+  # Comorbidities is multi-label ("Both" = Hypertension + Diabetes);
+  # expanded into one 0/1 flag per condition.
+  comorbidity_column: Comorbidities
+  comorbidity_flags:
+    Has_Hypertension: [Hypertension, Both]
+    Has_Diabetes: [Diabetes, Both]
+    Has_COPD: [COPD]
+    Has_CKD: [CKD]
+
+# ── Physiologically plausible ranges ─────────────────────────────
+# Values outside these bounds are treated as data-entry errors
+# (set to NaN and imputed), not outliers to drop.
+valid_ranges:
+  Age: [0, 120]
+  Risk_Score: [0, 100]
+  Mean_HR: [20, 250]
+  Max_HR: [20, 250]
+  Std_HR: [0, 100]
+  Mean_SpO2: [50, 100]
+  Min_SpO2: [50, 100]
+  Mean_BP_Sys: [40, 300]
+  Min_BP_Sys: [40, 300]
+  Max_Temp: [30, 45]
+  Mean_RR: [4, 70]
+  Max_RR: [4, 70]
+  Mean_GCS: [3, 15]
+  Min_GCS: [3, 15]
+  Hypoxia_Episodes: [0, 100]
+  Tachycardia_Episodes: [0, 100]
+  Vitals_Count: [1, 100]
+  NEWS2: [0, 20]
+  qSOFA: [0, 4]
+  SIRS: [0, 4]
+  LOS: [0, 365]
+
+# ── Training configuration ───────────────────────────────────────
+train:
+  random_state: 42
+  cv_folds: 5
+  n_iter: 10            # RandomizedSearchCV iterations per model
+  scoring: f1_weighted
+
+  models:
+    logistic_regression:
+      C: [0.01, 0.1, 1, 10, 100]
+      solver: [lbfgs, saga]
+      max_iter: [1000]
+      penalty: [l2]
+
+    random_forest:
+      n_estimators: [100, 200, 300, 500]
+      max_depth: [10, 20, 30, null]
+      min_samples_split: [2, 5, 10]
+      min_samples_leaf: [1, 2, 4]
+      max_features: [sqrt, log2]
+
+    xgboost:
+      n_estimators: [100, 200, 300, 500]
+      max_depth: [3, 5, 7, 10]
+      learning_rate: [0.01, 0.05, 0.1, 0.2]
+      subsample: [0.6, 0.8, 1.0]
+      colsample_bytree: [0.6, 0.8, 1.0]
+      min_child_weight: [1, 3, 5]
+
+# ── MLflow configuration ─────────────────────────────────────────
+# Override tracking_uri with the MLFLOW_TRACKING_URI env-var.
+mlflow:
+  tracking_uri: http://localhost:5000
+  experiment_name: healthcare-acuity-prediction
